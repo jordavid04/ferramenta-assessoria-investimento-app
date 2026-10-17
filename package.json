@@ -1,0 +1,30 @@
+{
+  "name": "ferramenta-assessoria-investimento",
+  "version": "0.1.0",
+  "private": true,
+  "description": "InvestPro - Ferramenta de assessoria de investimento (Projeto de Extensão Universitária II)",
+  "engines": { "node": ">=22.18" },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "node --test src/lib/**/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "db:init": "node scripts/db-init.mjs"
+  },
+  "dependencies": {
+    "next": "^15.5.0",
+    "pg": "^8.16.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.0",
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.15.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "tailwindcss": "^4.1.0",
+    "typescript": "^5.9.0"
+  }
+}

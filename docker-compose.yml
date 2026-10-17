@@ -1,0 +1,12 @@
+# Desenvolvimento local: sobe apenas o PostgreSQL. A aplicação roda com `npm run dev`.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: investpro
+      POSTGRES_PASSWORD: investpro
+      POSTGRES_DB: investpro
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+volumes:
+  pgdata:
