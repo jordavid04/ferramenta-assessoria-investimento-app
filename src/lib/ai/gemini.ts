@@ -42,7 +42,7 @@ export async function getRecommendation(answers: Answers, score: number, profile
     return { result: fallbackRecommendation(profile), source: "fallback", fallbackReason: "GEMINI_API_KEY não configurada" };
   }
 
-  const model = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+  const model = process.env.GEMINI_MODEL || "gemini-3.5-flash";
   try {
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: "POST",

@@ -1,105 +1,283 @@
-"use client";
+"use client"
 
-import Link from "next/link";
-import { useEffect, useState } from "react";
-import type { RecommendationResult } from "@/lib/ai/prompt";
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import {
+  BadgeCheckIcon,
+  BoxesIcon,
+  CheckCircle2Icon,
+  ClipboardListIcon,
+  InfoIcon,
+  LayersIcon,
+  LightbulbIcon,
+  RotateCcwIcon,
+  SparklesIcon,
+  WifiOffIcon,
+} from "lucide-react"
+import { toast } from "sonner"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty"
+import { Skeleton } from "@/components/ui/skeleton"
+import type { RecommendationResult } from "@/lib/ai/prompt"
 
 interface Payload {
-  id: string | null;
-  score: number;
-  profile: "Conservador" | "Moderado" | "Arrojado" | "Agressivo";
-  source: "gemini" | "fallback";
-  recommendation: RecommendationResult;
+  id: string | null
+  score: number
+  profile: "Conservador" | "Moderado" | "Arrojado" | "Agressivo"
+  source: "gemini" | "fallback"
+  recommendation: RecommendationResult
 }
 
-const COLORS = ["#2563eb", "#059669", "#d97706", "#7c3aed", "#64748b"];
+const COLORS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"]
+
+const PROFILE_VARIANT: Record<
+  Payload["profile"],
+  "default" | "secondary" | "outline"
+> = {
+  Conservador: "secondary",
+  Moderado: "outline",
+  Arrojado: "default",
+  Agressivo: "default",
+}
 
 export default function ResultadoPage() {
-  const [data, setData] = useState<Payload | null | undefined>(undefined);
+  const [data, setData] = useState<Payload | null | undefined>(undefined)
 
   useEffect(() => {
     try {
-      const raw = sessionStorage.getItem("investpro:resultado");
-      setData(raw ? (JSON.parse(raw) as Payload) : null);
+      const raw = sessionStorage.getItem("investpro:resultado")
+      const parsed = raw ? (JSON.parse(raw) as Payload) : null
+      setData(parsed)
+      if (parsed?.source === "fallback") {
+        toast.info("Modo offline", {
+          description: "A explicação foi gerada pelo motor local.",
+        })
+      }
     } catch {
-      setData(null);
+      setData(null)
     }
-  }, []);
+  }, [])
 
-  if (data === undefined) return <p className="text-slate-500">Carregando…</p>;
-  if (data === null)
+  if (data === undefined) {
     return (
-      <div className="rounded-2xl bg-white p-8 shadow-sm">
-        <p>Nenhum resultado encontrado. <Link className="text-brand underline" href="/suitability">Responda o questionário</Link>.</p>
+      <div className="flex flex-col gap-4" aria-busy="true" aria-label="Carregando resultado">
+        <Skeleton className="h-10 w-2/3" />
+        <Skeleton className="h-28 w-full rounded-2xl" />
+        <div className="grid gap-4 md:grid-cols-2">
+          <Skeleton className="h-56 w-full rounded-2xl" />
+          <Skeleton className="h-56 w-full rounded-2xl" />
+        </div>
       </div>
-    );
+    )
+  }
 
-  const { recommendation: r } = data;
-  const alloc = r.allocation.filter((a) => a.percent > 0);
+  if (data === null) {
+    return (
+      <Empty className="border border-dashed py-12">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <ClipboardListIcon />
+          </EmptyMedia>
+          <EmptyTitle className="text-xl">Nenhum resultado encontrado</EmptyTitle>
+          <EmptyDescription>
+            Responda o questionário para ver seu perfil e a orientação educacional.
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <Button
+            size="lg"
+            className="cursor-pointer"
+            render={<Link href="/suitability" />}
+            nativeButton={false}
+          >
+            <ClipboardListIcon data-icon="inline-start" />
+            Responder o questionário
+          </Button>
+        </EmptyContent>
+      </Empty>
+    )
+  }
+
+  const { recommendation: r } = data
+  const alloc = r.allocation.filter((a) => a.percent > 0)
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-extrabold">Seu perfil de investidor</h1>
-          <p className="text-slate-600">Pontuação: {data.score} de 72</p>
+    <div className="flex flex-col gap-6">
+      <header className="flex flex-wrap items-end justify-between gap-4 rounded-3xl border border-border bg-gradient-to-br from-nav to-secondary px-6 py-8 text-white sm:px-8">
+        <div className="flex flex-col gap-1">
+          <p className="flex items-center gap-1.5 text-sm font-medium text-slate-300">
+            <BadgeCheckIcon className="size-4" />
+            Seu perfil de investidor
+          </p>
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{data.profile}</h1>
+          <p className="text-slate-200">Pontuação: {data.score} de 72</p>
         </div>
-        <span className="rounded-full bg-emerald-100 px-4 py-1.5 font-bold text-emerald-800">Perfil {data.profile}</span>
+        <Badge variant={PROFILE_VARIANT[data.profile]} className="bg-white text-foreground">
+          <BadgeCheckIcon data-icon="inline-start" />
+          Perfil {data.profile}
+        </Badge>
       </header>
 
-      <section className="rounded-xl border border-dashed border-ia bg-ia-bg p-5">
-        <p className="mb-2 flex items-center gap-2 font-bold">
-          <span className="rounded-full bg-ia px-2 py-0.5 text-xs text-white">IA</span> Explicação do perfil
-        </p>
-        <p>{r.profileExplanation}</p>
-        <p className="mt-2 text-xs text-slate-500">
-          {data.source === "gemini" ? "Gerado pelo Google Gemini." : "Gerado pelo motor local (modo offline)."} O perfil foi calculado pelas regras do questionário.
-        </p>
-      </section>
+      <Card className="border-l-4 border-l-ai">
+        <CardHeader>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="flex size-8 items-center justify-center rounded-lg bg-ai-bg text-ai">
+              <SparklesIcon />
+            </span>
+            <CardTitle className="font-bold">Explicação do perfil</CardTitle>
+            <Badge variant="secondary">
+              {data.source === "gemini" ? (
+                <>
+                  <SparklesIcon data-icon="inline-start" />
+                  Gemini
+                </>
+              ) : (
+                <>
+                  <WifiOffIcon data-icon="inline-start" />
+                  Offline
+                </>
+              )}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <p className="leading-relaxed text-foreground">{r.profileExplanation}</p>
+          <CardDescription>
+            {data.source === "gemini"
+              ? "Texto gerado pelo Google Gemini."
+              : "Texto gerado pelo motor local (modo offline)."}{" "}
+            O perfil foi calculado pelas regras do questionário, não pela IA.
+          </CardDescription>
+          {data.source === "fallback" && (
+            <Alert>
+              <WifiOffIcon />
+              <AlertTitle>Modo offline</AlertTitle>
+              <AlertDescription>
+                A IA estava indisponível; usamos o motor local para manter a orientação educacional.
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
 
       <section className="grid gap-6 md:grid-cols-2">
-        <div className="rounded-2xl bg-white p-6 shadow-sm">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Distribuição sugerida</h2>
-          <div className="mt-4 flex h-5 overflow-hidden rounded-full" role="img" aria-label="Distribuição da carteira">
-            {alloc.map((a, i) => <div key={a.assetClass} style={{ width: `${a.percent}%`, background: COLORS[i % COLORS.length] }} />)}
-          </div>
-          <ul className="mt-4 space-y-3">
-            {alloc.map((a, i) => (
-              <li key={a.assetClass} className="text-sm">
-                <p className="flex items-center gap-2 font-semibold">
-                  <span className="h-3 w-3 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />
-                  {a.assetClass} — {a.percent}%
-                </p>
-                <p className="pl-5 text-slate-600">{a.rationale}</p>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="space-y-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Sugestões por classe de ativo</h2>
-          {r.suggestions.map((s) => (
-            <div key={s.title} className="rounded-xl bg-white p-4 shadow-sm">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold uppercase text-slate-500">{s.assetClass}</span>
-                <span className="font-semibold text-emerald-700">Compatibilidade: {s.compatibility}%</span>
-              </div>
-              <p className="mt-1 font-bold">{s.title}</p>
-              <p className="text-sm text-slate-600">{s.description}</p>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <LayersIcon className="size-3.5" />
+              Distribuição sugerida
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-5">
+            <div
+              className="flex h-4 overflow-hidden rounded-full bg-muted"
+              role="img"
+              aria-label="Distribuição da carteira"
+            >
+              {alloc.map((a, i) => (
+                <div
+                  key={a.assetClass}
+                  style={{ width: `${a.percent}%`, background: COLORS[i % COLORS.length] }}
+                  title={`${a.assetClass}: ${a.percent}%`}
+                />
+              ))}
             </div>
+            <ul className="flex flex-col gap-4">
+              {alloc.map((a, i) => (
+                <li key={a.assetClass} className="text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="flex items-center gap-2 font-semibold">
+                      <span
+                        className="size-3 shrink-0 rounded-full"
+                        style={{ background: COLORS[i % COLORS.length] }}
+                      />
+                      {a.assetClass}
+                    </p>
+                    <Badge variant="secondary">{a.percent}%</Badge>
+                  </div>
+                  <p className="mt-1 pl-5 text-muted-foreground">{a.rationale}</p>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+
+        <div className="flex flex-col gap-3">
+          <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <BoxesIcon className="size-3.5" />
+            Sugestões por classe de ativo
+          </h2>
+          {r.suggestions.map((s) => (
+            <Card key={s.title} size="sm">
+              <CardHeader>
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="font-semibold uppercase tracking-wide text-muted-foreground">
+                    {s.assetClass}
+                  </span>
+                  <Badge variant="outline" className="text-success">
+                    <CheckCircle2Icon data-icon="inline-start" />
+                    Compatibilidade: {s.compatibility}%
+                  </Badge>
+                </div>
+                <CardTitle className="font-bold">{s.title}</CardTitle>
+                <CardDescription className="leading-relaxed">{s.description}</CardDescription>
+              </CardHeader>
+            </Card>
           ))}
         </div>
       </section>
 
-      <section className="rounded-2xl bg-white p-6 shadow-sm">
-        <h2 className="font-bold">Dicas de educação financeira</h2>
-        <ul className="mt-2 list-disc space-y-1 pl-6 text-sm text-slate-700">
-          {r.educationalTips.map((t) => <li key={t}>{t}</li>)}
-        </ul>
-      </section>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <LightbulbIcon className="text-primary" />
+            <CardTitle className="font-bold">Dicas de educação financeira</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <ul className="flex flex-col gap-2 text-sm text-foreground">
+            {r.educationalTips.map((t) => (
+              <li key={t} className="flex gap-2">
+                <CheckCircle2Icon className="mt-0.5 size-4 shrink-0 text-primary" />
+                <span className="leading-relaxed">{t}</span>
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
 
-      <p className="rounded-lg bg-amber-50 p-4 text-xs text-amber-900">{r.disclaimer}</p>
-      <Link href="/suitability" className="inline-block rounded-lg border border-slate-300 bg-white px-5 py-2.5 font-semibold">Refazer questionário</Link>
+      <Alert>
+        <InfoIcon />
+        <AlertTitle>Aviso importante</AlertTitle>
+        <AlertDescription>{r.disclaimer}</AlertDescription>
+      </Alert>
+
+      <Button
+        variant="outline"
+        size="lg"
+        className="w-fit cursor-pointer"
+        render={<Link href="/suitability" />}
+        nativeButton={false}
+      >
+        <RotateCcwIcon data-icon="inline-start" />
+        Refazer questionário
+      </Button>
     </div>
-  );
+  )
 }

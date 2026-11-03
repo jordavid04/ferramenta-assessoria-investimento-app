@@ -1,30 +1,42 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import "./globals.css";
+import type { Metadata } from "next"
+import { Inter, Manrope } from "next/font/google"
+import { SiteFooter } from "@/components/layout/site-footer"
+import { SiteHeader } from "@/components/layout/site-header"
+import { Toaster } from "@/components/ui/sonner"
+import { cn } from "@/lib/utils"
+import "./globals.css"
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+})
+
+const manrope = Manrope({
+  subsets: ["latin"],
+  variable: "--font-manrope",
+  display: "swap",
+})
 
 export const metadata: Metadata = {
   title: "InvestPro — Assessoria de investimento",
-  description: "Descubra seu perfil de investidor (Suitability ANBIMA) e receba orientação educacional com IA.",
-};
+  description:
+    "Descubra seu perfil de investidor (Suitability ANBIMA) e receba orientação educacional com IA.",
+  icons: {
+    icon: "/banco.png",
+    apple: "/banco.png",
+  },
+}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" className={cn("font-sans", inter.variable, manrope.variable)}>
       <body className="min-h-screen font-sans antialiased">
-        <header className="bg-nav text-white">
-          <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-            <Link href="/" className="text-xl font-extrabold tracking-tight">InvestPro</Link>
-            <nav className="flex gap-5 text-sm text-slate-200">
-              <Link href="/suitability" className="hover:text-white">Descobrir meu perfil</Link>
-              <Link href="/sobre" className="hover:text-white">Sobre o projeto</Link>
-            </nav>
-          </div>
-        </header>
-        <main className="mx-auto max-w-5xl px-4 py-8">{children}</main>
-        <footer className="mx-auto max-w-5xl px-4 pb-10 text-xs text-slate-500">
-          Projeto de Extensão Universitária II · BSI. Conteúdo educacional; não constitui recomendação individualizada de investimento.
-        </footer>
+        <SiteHeader />
+        <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">{children}</main>
+        <SiteFooter />
+        <Toaster position="top-center" richColors closeButton />
       </body>
     </html>
-  );
+  )
 }
