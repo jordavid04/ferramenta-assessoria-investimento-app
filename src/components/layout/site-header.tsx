@@ -1,13 +1,19 @@
 "use client"
 
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import {
+  ChartColumnIcon,
   CompassIcon,
+  HistoryIcon,
   HomeIcon,
   InfoIcon,
   LandmarkIcon,
+  LogInIcon,
+  LogOutIcon,
   MenuIcon,
 } from "lucide-react"
+import { notifyAuthChanged, useCurrentUser } from "@/components/auth/use-current-user"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -18,6 +24,15 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 export function SiteHeader() {
+  const router = useRouter()
+  const user = useCurrentUser()
+
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" })
+    notifyAuthChanged()
+    router.push("/")
+  }
+
   return (
     <header className="border-b border-border bg-nav text-white">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
@@ -38,12 +53,48 @@ export function SiteHeader() {
             Início
           </Link>
           <Link
+            href="/painel-economico"
+            className="flex cursor-pointer items-center gap-1.5 text-slate-300 transition-colors duration-200 hover:text-white"
+          >
+            <ChartColumnIcon className="size-4" />
+            Painel econômico
+          </Link>
+          <Link
             href="/sobre"
             className="flex cursor-pointer items-center gap-1.5 text-slate-300 transition-colors duration-200 hover:text-white"
           >
             <InfoIcon className="size-4" />
             Sobre
           </Link>
+          {user && (
+            <Link
+              href="/minhas-analises"
+              className="flex cursor-pointer items-center gap-1.5 text-slate-300 transition-colors duration-200 hover:text-white"
+            >
+              <HistoryIcon className="size-4" />
+              Minhas análises
+            </Link>
+          )}
+          {user && <span className="text-slate-300">{user.username}</span>}
+          {user && (
+            <button
+              type="button"
+              onClick={() => void logout()}
+              className="flex cursor-pointer items-center gap-1.5 text-slate-300 transition-colors duration-200 hover:text-white"
+            >
+              <LogOutIcon className="size-4" />
+              Sair
+            </button>
+          )}
+          {user === null && (
+            <Link
+              href="/entrar"
+              className="flex cursor-pointer items-center gap-1.5 text-slate-300 transition-colors duration-200 hover:text-white"
+            >
+              <LogInIcon className="size-4" />
+              Entrar
+            </Link>
+          )}
           <Button
             size="lg"
             className="cursor-pointer"
@@ -84,10 +135,32 @@ export function SiteHeader() {
                   <HomeIcon />
                   Início
                 </DropdownMenuItem>
+                <DropdownMenuItem render={<Link href="/painel-economico" />}>
+                  <ChartColumnIcon />
+                  Painel econômico
+                </DropdownMenuItem>
                 <DropdownMenuItem render={<Link href="/sobre" />}>
                   <InfoIcon />
                   Sobre
                 </DropdownMenuItem>
+                {user && (
+                  <DropdownMenuItem render={<Link href="/minhas-analises" />}>
+                    <HistoryIcon />
+                    Minhas análises
+                  </DropdownMenuItem>
+                )}
+                {user === null && (
+                  <DropdownMenuItem render={<Link href="/entrar" />}>
+                    <LogInIcon />
+                    Entrar
+                  </DropdownMenuItem>
+                )}
+                {user && (
+                  <DropdownMenuItem onClick={() => void logout()}>
+                    <LogOutIcon />
+                    Sair ({user.username})
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem render={<Link href="/suitability" />}>
                   <CompassIcon />
                   Descobrir meu perfil

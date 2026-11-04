@@ -36,36 +36,68 @@ export interface RecommendationOutcome {
   fallbackReason?: string;
 }
 
-export async function getRecommendation(answers: Answers, score: number, profile: Profile): Promise<RecommendationOutcome> {
+/**
+ * Chama o Gemini pedindo JSON e devolve o objeto já interpretado.
+ * Lança erro em qualquer falha (sem chave, rede, timeout, HTTP não-ok, JSON inválido);
+ * quem chama decide o fallback.
+ */
+export async function generateJson(prompt: string): Promise<unknown> {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
+  if (!apiKey) throw new Error("GEMINI_API_KEY não configurada");
+
+  const model = process.env.GEMINI_MODEL || "gemini-3.5-flash";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+
+  console.info("[IA] request", { model, hasApiKey: true, promptLength: prompt.length, url });
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+    body: JSON.stringify({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.4, responseMimeType: "application/json" },
+    }),
+    signal: AbortSignal.timeout(20_000),
+  });
+
+  const rawBody = await res.text();
+  console.info("[IA] response", {
+    status: res.status,
+    ok: res.ok,
+    bodyPreview: rawBody.slice(0, 800),
+  });
+
+  if (!res.ok) throw new Error(`Gemini respondeu HTTP ${res.status}: ${rawBody.slice(0, 300)}`);
+
+  const payload = JSON.parse(rawBody) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+  const text = payload.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
+  console.info("[IA] candidate text", { length: text.length, preview: text.slice(0, 500) });
+
+  return JSON.parse(text);
+}
+
+export async function getRecommendation(answers: Answers, score: number, profile: Profile): Promise<RecommendationOutcome> {
+  if (!process.env.GEMINI_API_KEY) {
+    console.warn("[IA] fallback: GEMINI_API_KEY não configurada");
     return { result: fallbackRecommendation(profile), source: "fallback", fallbackReason: "GEMINI_API_KEY não configurada" };
   }
 
-  const model = process.env.GEMINI_MODEL || "gemini-3.5-flash";
-  try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: buildPrompt(answers, score, profile) }] }],
-        generationConfig: { temperature: 0.4, responseMimeType: "application/json" },
-      }),
-      signal: AbortSignal.timeout(20_000),
-    });
-    if (!res.ok) throw new Error(`Gemini respondeu HTTP ${res.status}`);
+  const prompt = buildPrompt(answers, score, profile);
+  console.info("[IA] recommendation", { profile, score });
 
-    const payload = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
-    const text = payload.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
-    const result = parseResult(JSON.parse(text));
+  try {
+    const result = parseResult(await generateJson(prompt));
 
     if (!validateAllocation(result, profile)) throw new Error("Alocação retornada pela IA violou as regras de validação");
+    console.info("[IA] sucesso via Gemini");
     return { result, source: "gemini" };
   } catch (err) {
+    const fallbackReason = err instanceof Error ? err.message : "erro desconhecido";
+    console.error("[IA] fallback", { reason: fallbackReason, err });
     return {
       result: fallbackRecommendation(profile),
       source: "fallback",
-      fallbackReason: err instanceof Error ? err.message : "erro desconhecido",
+      fallbackReason,
     };
   }
 }

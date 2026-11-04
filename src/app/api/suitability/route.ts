@@ -1,9 +1,25 @@
+import { jsonAuthError } from "@/lib/api-error";
 import { getRecommendation } from "@/lib/ai/gemini";
-import { saveSession } from "@/lib/db";
+import { listSessionsByUser, saveSession } from "@/lib/db";
+import { getCurrentUser } from "@/lib/session";
 import { QUESTIONS } from "@/lib/suitability/questions";
 import { evaluate, isComplete, type Answers } from "@/lib/suitability/scoring";
 
 export const dynamic = "force-dynamic";
+
+/** GET /api/suitability — análises da conta logada. */
+export async function GET() {
+  const user = await getCurrentUser();
+  if (!user) {
+    return Response.json({ error: "Entre na sua conta para ver as análises." }, { status: 401 });
+  }
+  try {
+    const sessions = await listSessionsByUser(user.id);
+    return Response.json({ sessions });
+  } catch (err) {
+    return jsonAuthError(err);
+  }
+}
 
 /**
  * POST /api/suitability
@@ -40,7 +56,16 @@ export async function POST(req: Request) {
 
   let id: string | null = null;
   try {
-    id = await saveSession({ answers, score, profile, aiSource: source, recommendation: result, acceptedTerms: true });
+    const user = await getCurrentUser();
+    id = await saveSession({
+      answers,
+      score,
+      profile,
+      aiSource: source,
+      recommendation: result,
+      acceptedTerms: true,
+      userId: user?.id ?? null,
+    });
   } catch (err) {
     console.error("Falha ao persistir sessão:", err); // não bloqueia o usuário
   }
