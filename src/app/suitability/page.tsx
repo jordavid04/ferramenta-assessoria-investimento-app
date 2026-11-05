@@ -134,7 +134,8 @@ export default function SuitabilityPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? "Não foi possível gerar o resultado.")
       try {
-        sessionStorage.setItem("investpro:resultado", JSON.stringify(data))
+        // As respostas ficam só no navegador: permitem mostrar o perfil por dimensão mesmo sem conta.
+        sessionStorage.setItem("investpro:resultado", JSON.stringify({ ...data, answers }))
       } catch {
         /* modo privado */
       }

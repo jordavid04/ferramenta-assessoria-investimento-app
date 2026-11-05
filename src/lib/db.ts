@@ -208,6 +208,190 @@ export async function getSessionForUser(id: string, userId: string): Promise<Sto
   };
 }
 
+/* ---------- Perfil multidimensional (lê as respostas já guardadas; não grava nada) ---------- */
+
+export type StoredAnalysis = {
+  id: string;
+  createdAt: string;
+  score: number;
+  profile: Profile;
+  /** JSONB como está no banco ({"1":"C",...}); quem usa valida. */
+  answers: unknown;
+};
+
+type AnalysisRow = { id: string; created_at: Date; score: number; profile: Profile; answers: unknown };
+
+const toStoredAnalysis = (r: AnalysisRow): StoredAnalysis => ({
+  id: r.id,
+  createdAt: new Date(r.created_at).toISOString(),
+  score: r.score,
+  profile: r.profile,
+  answers: r.answers,
+});
+
+/** Só devolve a análise se for da conta; anônima ou de outra conta é como se não existisse. */
+export async function getSessionWithAnswersForUser(id: string, userId: string): Promise<StoredAnalysis | null> {
+  const p = requirePool();
+  const { rows } = await p.query<AnalysisRow>(
+    `SELECT id, created_at, score, profile, answers
+     FROM suitability_sessions
+     WHERE id = $1 AND user_id = $2`,
+    [id, userId],
+  );
+  return rows[0] ? toStoredAnalysis(rows[0]) : null;
+}
+
+/** Análises da conta, da mais recente para a mais antiga; com `before`, só as criadas antes dessa data (ISO). */
+export async function listRecentSessionsWithAnswers(userId: string, before: string | null, limit: number): Promise<StoredAnalysis[]> {
+  const p = requirePool();
+  const { rows } = await p.query<AnalysisRow>(
+    `SELECT id, created_at, score, profile, answers
+     FROM suitability_sessions
+     WHERE user_id = $1 AND ($2::timestamptz IS NULL OR created_at < $2::timestamptz)
+     ORDER BY created_at DESC
+     LIMIT $3`,
+    [userId, before, limit],
+  );
+  return rows.map(toStoredAnalysis);
+}
+
+/* ---------- Simulador de projeção de patrimônio ---------- */
+
+/** Análise mais recente da conta com a alocação gravada (a que o usuário viu no resultado). */
+export type LatestAnalysis = { id: string; createdAt: string; profile: Profile; allocation: unknown };
+
+export async function getLatestAnalysisForUser(userId: string): Promise<LatestAnalysis | null> {
+  const p = requirePool();
+  const { rows } = await p.query<{ id: string; created_at: Date; profile: Profile; allocation: unknown }>(
+    `SELECT id, created_at, profile, recommendation->'allocation' AS allocation
+     FROM suitability_sessions
+     WHERE user_id = $1
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [userId],
+  );
+  const row = rows[0];
+  if (!row) return null;
+  return { id: row.id, createdAt: new Date(row.created_at).toISOString(), profile: row.profile, allocation: row.allocation };
+}
+
+export type SimulationInsert = {
+  userId: string;
+  profile: Profile;
+  profileOrigin: "analise" | "exemplo";
+  input: unknown;
+  allocation: unknown;
+  rates: unknown;
+  result: unknown;
+  aiSource: "gemini" | "fallback";
+  reading: string;
+};
+
+export async function saveSimulation(sim: SimulationInsert): Promise<string> {
+  const p = requirePool();
+  const { rows } = await p.query<{ id: string }>(
+    `INSERT INTO simulation_runs (user_id, profile, profile_origin, input, allocation, rates, result, ai_source, reading)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+    [
+      sim.userId,
+      sim.profile,
+      sim.profileOrigin,
+      JSON.stringify(sim.input),
+      JSON.stringify(sim.allocation),
+      JSON.stringify(sim.rates),
+      JSON.stringify(sim.result),
+      sim.aiSource,
+      sim.reading,
+    ],
+  );
+  return rows[0].id;
+}
+
+export type SimulationSummary = {
+  id: string;
+  createdAt: string;
+  profile: Profile;
+  profileOrigin: "analise" | "exemplo";
+  input: unknown;
+  /** Valor final do cenário base (já calculado e gravado). */
+  baseFinal: number | null;
+};
+
+export async function listSimulationsByUser(userId: string): Promise<SimulationSummary[]> {
+  const p = requirePool();
+  const { rows } = await p.query<{
+    id: string;
+    created_at: Date;
+    profile: Profile;
+    profile_origin: "analise" | "exemplo";
+    input: unknown;
+    base_final: string | null;
+  }>(
+    `SELECT id, created_at, profile, profile_origin, input, result->'scenarios'->'base'->>'finalValue' AS base_final
+     FROM simulation_runs
+     WHERE user_id = $1
+     ORDER BY created_at DESC`,
+    [userId],
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    createdAt: new Date(r.created_at).toISOString(),
+    profile: r.profile,
+    profileOrigin: r.profile_origin,
+    input: r.input,
+    baseFinal: r.base_final !== null && Number.isFinite(Number(r.base_final)) ? Number(r.base_final) : null,
+  }));
+}
+
+export type StoredSimulation = {
+  id: string;
+  createdAt: string;
+  profile: Profile;
+  profileOrigin: "analise" | "exemplo";
+  input: unknown;
+  allocation: unknown;
+  rates: unknown;
+  result: unknown;
+  source: "gemini" | "fallback";
+  reading: string;
+};
+
+/** Só devolve a simulação se for da conta; de outra conta (ou anônima) é como se não existisse. */
+export async function getSimulationForUser(id: string, userId: string): Promise<StoredSimulation | null> {
+  const p = requirePool();
+  const { rows } = await p.query<{
+    id: string;
+    created_at: Date;
+    profile: Profile;
+    profile_origin: "analise" | "exemplo";
+    input: unknown;
+    allocation: unknown;
+    rates: unknown;
+    result: unknown;
+    ai_source: "gemini" | "fallback";
+    reading: string;
+  }>(
+    `SELECT id, created_at, profile, profile_origin, input, allocation, rates, result, ai_source, reading
+     FROM simulation_runs
+     WHERE id = $1 AND user_id = $2`,
+    [id, userId],
+  );
+  const r = rows[0];
+  if (!r) return null;
+  return {
+    id: r.id,
+    createdAt: new Date(r.created_at).toISOString(),
+    profile: r.profile,
+    profileOrigin: r.profile_origin,
+    input: r.input,
+    allocation: r.allocation,
+    rates: r.rates,
+    result: r.result,
+    source: r.ai_source,
+    reading: r.reading,
+  };
+}
+
 export async function dbHealth(): Promise<"ok" | "disabled" | "error"> {
   const p = getPool();
   if (!p) return "disabled";

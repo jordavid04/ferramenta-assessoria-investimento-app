@@ -31,6 +31,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import { Skeleton } from "@/components/ui/skeleton"
+import { SecaoDimensoes } from "@/components/dimensoes/secao-dimensoes"
 import type { RecommendationResult } from "@/lib/ai/prompt"
 
 export interface ResultPayload {
@@ -39,6 +40,8 @@ export interface ResultPayload {
   profile: "Conservador" | "Moderado" | "Arrojado" | "Agressivo"
   source: "gemini" | "fallback"
   recommendation: RecommendationResult
+  /** Respostas do resultado que acabou de sair (só no navegador); permitem mostrar as dimensões sem conta. */
+  answers?: Record<string, string>
 }
 
 const COLORS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"]
@@ -156,6 +159,8 @@ export function ResultadoView({ data }: { data: ResultPayload }) {
           )}
         </CardContent>
       </Card>
+
+      <SecaoDimensoes id={data.id} answers={data.answers} />
 
       <section className="grid gap-6 md:grid-cols-2">
         <Card>

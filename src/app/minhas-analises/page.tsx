@@ -16,6 +16,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import { Skeleton } from "@/components/ui/skeleton"
+import { MinhaEvolucao } from "@/components/dimensoes/minha-evolucao"
 
 type SessionSummary = {
   id: string
@@ -81,6 +82,8 @@ export default function MinhasAnalisesPage() {
         </h1>
         <p className="text-muted-foreground">Resultados salvos na sua conta.</p>
       </header>
+
+      {sessions.length > 0 && <MinhaEvolucao idMaisRecente={sessions[0].id} />}
 
       {sessions.length === 0 ? (
         <Empty className="border border-dashed py-12">

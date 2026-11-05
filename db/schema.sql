@@ -37,6 +37,26 @@ CREATE TABLE IF NOT EXISTS economic_indicators (
   fetched_at TIMESTAMPTZ NOT NULL
 );
 
+-- Simulador de projeção de patrimônio: só existe quando um usuário logado salva a simulação.
+-- Guarda os valores digitados e o resultado; nenhum dado pessoal novo. Conta apagada => simulação anônima (user_id nulo).
+CREATE TABLE IF NOT EXISTS simulation_runs (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  user_id        UUID REFERENCES users(id) ON DELETE SET NULL,
+  profile        TEXT        NOT NULL CHECK (profile IN ('Conservador','Moderado','Arrojado','Agressivo')),
+  profile_origin TEXT        NOT NULL CHECK (profile_origin IN ('analise','exemplo')),
+  input          JSONB       NOT NULL,                              -- {initial, monthly, years, goal}
+  allocation     JSONB       NOT NULL,                              -- [{assetClass, percent}] usada na projeção
+  rates          JSONB       NOT NULL,                              -- CDI, inflação e origem dos dados na hora da simulação
+  result         JSONB       NOT NULL,                              -- projeção calculada pelo sistema
+  ai_source      TEXT        NOT NULL CHECK (ai_source IN ('gemini','fallback')),
+  reading        TEXT        NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_simulation_user_created ON simulation_runs (user_id, created_at DESC);
+
+-- Leituras do simulador reaproveitam esta tabela com chave 'sim|...' (hash dos números; sem dado pessoal).
+-- As do perfil multidimensional também, com chave 'dim|...' (hash das notas e alertas; sem dado pessoal).
 CREATE TABLE IF NOT EXISTS economic_insights (
   cache_key  TEXT        PRIMARY KEY,                           -- perfil|selic|cdi|ipca12m|juro real|tendências
   payload    JSONB       NOT NULL,                              -- leitura validada: {reading, classNotes}

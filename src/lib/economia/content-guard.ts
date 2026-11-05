@@ -68,12 +68,27 @@ function matchesAllowed(n: number, allowed: number[]): boolean {
   return allowed.some((v) => [0, 1, 2].some((d) => Math.abs(Math.round(Math.abs(v) * 10 ** d) / 10 ** d - n) < 1e-9));
 }
 
-/** Motivos pelos quais o texto não pode ser exibido (lista vazia = texto aceito). */
-export function checkInsightText(text: string, ctx: GuardContext): string[] {
+/** Regras de linguagem (promessa, recomendação, ativo específico, formatação), sem olhar números nem perfil. */
+export function checkForbiddenLanguage(text: string): string[] {
   const reasons = new Set<string>();
   for (const [re, reason] of [...PROMISE, ...RECOMMENDATION]) if (re.test(text)) reasons.add(reason);
   if (TICKER.test(text)) reasons.add("citação de ativo específico (código de negociação)");
   if (MARKUP.test(text)) reasons.add("formatação ou link não permitido");
+  return [...reasons];
+}
+
+/** Motivo quando o texto cita um perfil diferente de `profile` (vazio = tudo certo). */
+export function checkProfileMention(text: string, profile: Profile | null): string[] {
+  if (!profile) return [];
+  for (const m of text.matchAll(PROFILE_MENTION)) {
+    if (m[1].toLowerCase() !== profile.toLowerCase()) return ["menção a perfil diferente do perfil da conta"];
+  }
+  return [];
+}
+
+/** Motivos pelos quais o texto não pode ser exibido (lista vazia = texto aceito). */
+export function checkInsightText(text: string, ctx: GuardContext): string[] {
+  const reasons = new Set<string>(checkForbiddenLanguage(text));
 
   for (const m of text.matchAll(NUMBER)) {
     if (!m[1] && !m[3]) continue; // só confere valores em % ou R$
@@ -81,11 +96,7 @@ export function checkInsightText(text: string, ctx: GuardContext): string[] {
     if (!matchesAllowed(n, ctx.allowedNumbers)) reasons.add(`número que o sistema não forneceu (${m[0].trim()})`);
   }
 
-  if (ctx.profile) {
-    for (const m of text.matchAll(PROFILE_MENTION)) {
-      if (m[1].toLowerCase() !== ctx.profile.toLowerCase()) reasons.add("menção a perfil diferente do perfil da conta");
-    }
-  }
+  for (const r of checkProfileMention(text, ctx.profile)) reasons.add(r);
   return [...reasons];
 }
 

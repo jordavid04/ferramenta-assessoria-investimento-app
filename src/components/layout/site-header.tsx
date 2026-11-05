@@ -3,6 +3,8 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
+  BookmarkIcon,
+  CalculatorIcon,
   ChartColumnIcon,
   CompassIcon,
   HistoryIcon,
@@ -53,28 +55,12 @@ export function SiteHeader() {
             Início
           </Link>
           <Link
-            href="/painel-economico"
-            className="flex cursor-pointer items-center gap-1.5 text-slate-300 transition-colors duration-200 hover:text-white"
-          >
-            <ChartColumnIcon className="size-4" />
-            Painel econômico
-          </Link>
-          <Link
             href="/sobre"
             className="flex cursor-pointer items-center gap-1.5 text-slate-300 transition-colors duration-200 hover:text-white"
           >
             <InfoIcon className="size-4" />
             Sobre
           </Link>
-          {user && (
-            <Link
-              href="/minhas-analises"
-              className="flex cursor-pointer items-center gap-1.5 text-slate-300 transition-colors duration-200 hover:text-white"
-            >
-              <HistoryIcon className="size-4" />
-              Minhas análises
-            </Link>
-          )}
           {user && <span className="text-slate-300">{user.username}</span>}
           {user && (
             <button
@@ -139,6 +125,10 @@ export function SiteHeader() {
                   <ChartColumnIcon />
                   Painel econômico
                 </DropdownMenuItem>
+                <DropdownMenuItem render={<Link href="/simulador" />}>
+                  <CalculatorIcon />
+                  Simulador
+                </DropdownMenuItem>
                 <DropdownMenuItem render={<Link href="/sobre" />}>
                   <InfoIcon />
                   Sobre
@@ -147,6 +137,12 @@ export function SiteHeader() {
                   <DropdownMenuItem render={<Link href="/minhas-analises" />}>
                     <HistoryIcon />
                     Minhas análises
+                  </DropdownMenuItem>
+                )}
+                {user && (
+                  <DropdownMenuItem render={<Link href="/minhas-simulacoes" />}>
+                    <BookmarkIcon />
+                    Minhas simulações
                   </DropdownMenuItem>
                 )}
                 {user === null && (
